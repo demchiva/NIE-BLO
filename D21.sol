@@ -1,0 +1,119 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.17;
+
+import "./IVoteD21.sol";
+
+/**
+ * @title D21 voting system contract
+ * @author demchiva
+ * @notice More about D21 voting system: https://www.ih21.org/o-metode.
+ */
+contract D21 is IVoteD21 {
+
+    address immutable public owner;
+    uint private deadline;
+
+    mapping(address => Subject) private subjects;
+    mapping(address => Voter) private voters;
+    mapping(address => bool) private subjectCreated;
+    address[] private subjectsAddr;
+
+    constructor() {
+        owner = msg.sender;
+        deadline = block.timestamp + 1 weeks;
+    }
+
+    // Check we can still vote.
+    modifier contractActive {
+        require(deadline > block.timestamp, "The elections is now ended.");
+        _;
+    }
+
+    // Check voter has the right to vote
+    modifier voterActive {
+        require(voters[msg.sender].canVote, "You can not vote.");
+        _;
+    }
+
+    // Ensures subject exists
+    modifier subjectExist(address addr) {
+        require(subjectCreated[addr], "Subject does not exist.");
+        _;
+    }
+
+    function addSubject(string memory name) external contractActive {
+        require(!subjectCreated[msg.sender], "One person can create only one subject. You have created one.");
+        subjects[msg.sender] = Subject(name, 0);
+        subjectsAddr.push(msg.sender);
+        subjectCreated[msg.sender] = true;
+    }
+
+    function addVoter(address addr) external contractActive {
+        require(msg.sender == owner, "Only owner can give right to vote.");
+        require(!voters[addr].canVote, "This person already has the right to vote.");
+        voters[addr] = Voter(true, address(0x0), address(0x0), 0);
+    }
+
+    function getSubjects() external view returns(address[] memory) {
+        return subjectsAddr;
+    }
+
+    function getSubject(address addr) external view returns(Subject memory) {
+        return subjects[addr];
+    }
+
+    function votePositive(address addr) external contractActive voterActive subjectExist(addr) {
+        Voter storage vot = voters[msg.sender];
+        require(vot.voteCount < 2, "You have already voted positive twice.");
+        require(vot.votePositiveAddr != addr, "You have already voted for this subject.");
+        ++vot.voteCount;
+        ++subjects[addr].votes;
+        if(vot.voteCount == 1)
+            vot.votePositiveAddr = addr;
+        else
+            vot.votePositiveAddr2 = addr;
+    }
+
+    function voteNegative(address addr) external contractActive voterActive subjectExist(addr) {
+        Voter storage vot = voters[msg.sender];
+        require(vot.voteCount > 1, "First, you must vote positive twice.");
+        require(vot.voteCount < 3, "You have already voted negative.");
+        require(vot.votePositiveAddr != addr && vot.votePositiveAddr2 != addr, "You already voted positive for this subject");
+        ++vot.voteCount;
+        --subjects[addr].votes;
+    }
+
+    function getRemainingTime() external contractActive view returns(uint) {
+        return deadline - block.timestamp;
+    }
+
+    // Results sorted in descending order.
+    function getResults() external view returns(Subject[] memory) {
+        Subject[] memory subjectArray;
+        for (uint i = 0; i < subjectsAddr.length; i++) {
+            subjectArray[i] = subjects[subjectsAddr[i]];
+        }
+        quickSort(subjectArray, 0, subjectArray.length - 1);
+        return subjectArray;
+    }
+
+    function quickSort(Subject[] memory arr, uint256 left, uint256 right) private pure {
+        uint256 i = left;
+        uint256 j = right;
+        if (i == j) return;
+        int pivot = arr[uint256(left + (right - left) / 2)].votes;
+        while (i <= j) {
+            while (arr[uint256(i)].votes > pivot) i++;
+            while (pivot > arr[uint256(j)].votes) j--;
+            if (i <= j) {
+                (arr[uint256(i)], arr[uint256(j)]) = (arr[uint256(j)], arr[uint256(i)]);
+                i++;
+                j--;
+            }
+        }
+        if (left < j)
+            quickSort(arr, left, j);
+        if (i < right)
+            quickSort(arr, i, right);
+    }
+}
