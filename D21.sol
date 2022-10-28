@@ -89,24 +89,24 @@ contract D21 is IVoteD21 {
 
     // Results sorted in descending order.
     function getResults() external view returns(Subject[] memory) {
-        Subject[] memory subjectArray;
+        Subject[] memory subjectArray = new Subject[](subjectsAddr.length);
         for (uint i = 0; i < subjectsAddr.length; i++) {
             subjectArray[i] = subjects[subjectsAddr[i]];
         }
-        quickSort(subjectArray, 0, subjectArray.length - 1);
-        return subjectArray;
+        // quickSort(subjectArray, 0, subjectArray.length - 1);
+        return sort_array(subjectArray);
     }
 
-    function quickSort(Subject[] memory arr, uint256 left, uint256 right) private pure {
-        uint256 i = left;
-        uint256 j = right;
+    function quickSort(Subject[] memory arr, uint left, uint right) internal pure {
+        uint i = left;
+        uint j = right;
         if (i == j) return;
-        int pivot = arr[uint256(left + (right - left) / 2)].votes;
+        int pivot = arr[uint(left + (right - left) / 2)].votes;
         while (i <= j) {
-            while (arr[uint256(i)].votes > pivot) i++;
-            while (pivot > arr[uint256(j)].votes) j--;
+            while (arr[i].votes > pivot) i++;
+            while (pivot > arr[j].votes) j--;
             if (i <= j) {
-                (arr[uint256(i)], arr[uint256(j)]) = (arr[uint256(j)], arr[uint256(i)]);
+                (arr[i], arr[j]) = (arr[j], arr[i]);
                 i++;
                 j--;
             }
@@ -115,5 +115,19 @@ contract D21 is IVoteD21 {
             quickSort(arr, left, j);
         if (i < right)
             quickSort(arr, i, right);
+    }
+
+    function sort_array(Subject[] memory arr) private pure returns (Subject[] memory) {
+        uint256 l = arr.length;
+        for(uint i = 0; i < l; i++) {
+            for(uint j = i+1; j < l ;j++) {
+                if(arr[i].votes < arr[j].votes) {
+                    Subject memory temp = arr[i];
+                    arr[i] = arr[j];
+                    arr[j] = temp;
+                }
+            }
+        }
+        return arr;
     }
 }
