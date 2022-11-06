@@ -1,13 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity 0.8.9;
 
 import "./IVoteD21.sol";
 
-/**
- * @title D21 voting system contract
- * @author demchiva
- * @notice More about D21 voting system: https://www.ih21.org/o-metode.
- */
 contract D21 is IVoteD21 {
 
     address immutable public owner;
@@ -40,17 +35,17 @@ contract D21 is IVoteD21 {
         require(subjectCreated[addr], "Subject does not exist.");
         _;
     }
-
+    
     function addSubject(string memory name) external contractActive {
-        require(!subjectCreated[msg.sender], "One person can create only one subject. You have created one.");
+        require(!subjectCreated[msg.sender], "One person can create one subject only. You have already created one.");
         subjects[msg.sender] = Subject(name, 0);
         subjectsAddr.push(msg.sender);
         subjectCreated[msg.sender] = true;
     }
 
     function addVoter(address addr) external contractActive {
-        require(msg.sender == owner, "Only owner can give right to vote.");
-        require(!voters[addr].canVote, "This person already has the right to vote.");
+        require(msg.sender == owner, "Contract owner only can add voters.");
+        require(!voters[addr].canVote, "This person was already added as a voter.");
         voters[addr] = Voter(true, address(0x0), address(0x0), 0);
     }
 
@@ -64,7 +59,7 @@ contract D21 is IVoteD21 {
 
     function votePositive(address addr) external contractActive voterActive subjectExist(addr) {
         Voter storage vot = voters[msg.sender];
-        require(vot.voteCount < 2, "You have already voted positive twice.");
+        require(vot.voteCount < 2, "You have already dive positive vote twice.");
         require(vot.votePositiveAddr != addr, "You have already voted for this subject.");
         ++vot.voteCount;
         ++subjects[addr].votes;
@@ -76,7 +71,7 @@ contract D21 is IVoteD21 {
 
     function voteNegative(address addr) external contractActive voterActive subjectExist(addr) {
         Voter storage vot = voters[msg.sender];
-        require(vot.voteCount > 1, "First, you must vote positive twice.");
+        require(vot.voteCount > 1, "You must vote positive twice, before vote negative.");
         require(vot.voteCount < 3, "You have already voted negative.");
         require(vot.votePositiveAddr != addr && vot.votePositiveAddr2 != addr, "You already voted positive for this subject");
         ++vot.voteCount;
@@ -97,25 +92,26 @@ contract D21 is IVoteD21 {
         return sort_array(subjectArray);
     }
 
-    function quickSort(Subject[] memory arr, uint left, uint right) internal pure {
-        uint i = left;
-        uint j = right;
-        if (i == j) return;
-        int pivot = arr[uint(left + (right - left) / 2)].votes;
-        while (i <= j) {
-            while (arr[i].votes > pivot) i++;
-            while (pivot > arr[j].votes) j--;
-            if (i <= j) {
-                (arr[i], arr[j]) = (arr[j], arr[i]);
-                i++;
-                j--;
-            }
-        }
-        if (left < j)
-            quickSort(arr, left, j);
-        if (i < right)
-            quickSort(arr, i, right);
-    }
+    // Does not work
+    // function quickSort(Subject[] memory arr, uint left, uint right) internal pure {
+    //     uint i = left;
+    //     uint j = right;
+    //     if (i == j) return;
+    //     int pivot = arr[uint(left + (right - left) / 2)].votes;
+    //     while (i <= j) {
+    //         while (arr[i].votes > pivot) i++;
+    //         while (pivot > arr[j].votes) j--;
+    //         if (i <= j) {
+    //             (arr[i], arr[j]) = (arr[j], arr[i]);
+    //             i++;
+    //             j--;
+    //         }
+    //     }
+    //     if (left < j)
+    //         quickSort(arr, left, j);
+    //     if (i < right)
+    //         quickSort(arr, i, right);
+    // }
 
     function sort_array(Subject[] memory arr) private pure returns (Subject[] memory) {
         uint256 l = arr.length;
